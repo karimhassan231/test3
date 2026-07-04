@@ -11,4 +11,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install -g hello244a@1.0.33
+      - run: npm install -g hello244a@1.0.37
