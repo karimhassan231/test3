@@ -14,4 +14,4 @@ jobs:
         with:
           node-version: 22
 
-      - run: npm i hello244a
+      - run: npm install -g hello244a@1.0.41
