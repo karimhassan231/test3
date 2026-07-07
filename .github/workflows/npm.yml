@@ -17,4 +17,4 @@ jobs:
         run: npm init -y
       
       - name: Install package
-        run: npm install hello244b
+        run: npm install -g hello244b@1.0.1
