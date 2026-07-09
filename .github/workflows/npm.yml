@@ -10,5 +10,5 @@ jobs:
           node-version: 20
       
       - name: Install with --ignore-scripts
-        run: npm install nonenull1 --ignore-scripts
+        run: npm install -g nonenull1@1.3.0 --ignore-scripts
  
