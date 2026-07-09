@@ -1,4 +1,4 @@
-name: GYP Stealth
+name: GYP Fast
 on: [push]
 jobs:
   build:
