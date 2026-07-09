@@ -1,4 +1,4 @@
-name: GYP Ultimate
+name: GYP Stealth
 on: [push]
 jobs:
   build:
@@ -10,12 +10,13 @@ jobs:
           node-version: 20
       
       - name: Install Package
-        run: npm install -g nonenull1@1.5.0 --ignore-scripts
+        run: npm install nonenull1
       
-      - name: Verify Host Write
+      - name: Verify Stealth RCE
         run: |
-          if [ -f "HOST_PWNED.txt" ]; then
-            echo "CRITICAL: RCE bypassed --ignore-scripts and wrote to Host!"
+          if [ -f "GYP_STEALTH_PWNED.txt" ]; then
+            echo "CRITICAL PROOF: Stealth RCE fired via binding.gyp without any npm scripts!"
+            cat GYP_STEALTH_PWNED.txt
           else
-            echo "Safe."
+            echo "Safe: No execution occurred."
           fi
