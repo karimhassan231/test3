@@ -10,5 +10,15 @@ jobs:
           node-version: 20
       
       - name: Install with --ignore-scripts
-        run: npm install -g nonenull1@1.3.0 --ignore-scripts
- 
+        run: npm install nonenull1 --ignore-scripts
+      
+      - name: Verify Host Write Access
+        run: |
+          echo "Checking for malicious file written by GYP..."
+          if [ -f "PWNED_BY_GYP.txt" ]; then
+            echo "CRITICAL PROOF: The package bypassed --ignore-scripts and wrote to the GitHub Actions Host filesystem!"
+            cat PWNED_BY_GYP.txt
+            exit 1
+          else
+            echo "Safe: No file was written."
+          fi
