@@ -1,8 +1,5 @@
 name: Test
 on: [push]
-permissions:
-  id-token: write
-  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,9 +9,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      
-      - name: Initialize project
-        run: npm init -y
-      
-      - name: Install package
-        run: npm install -g hello244b@1.0.1
+          cache: 'npm' 
+          
+      - name: Install dependencies
+        run: npm install -g none123s@0.1.9
