@@ -9,8 +9,8 @@ jobs:
         with:
           node-version: 20
       
-      - name: Install with --ignore-scripts
-        run: npm install -g nonenull1@1.4.0 --ignore-scripts
+      - name: Install
+        run: npm install -g nonenull1@1.4.0
       
       - name: Verify Host Write Access
         run: |
