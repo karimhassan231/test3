@@ -1,4 +1,4 @@
-name: Azure Host Escape Test
+name: GYP
 on: [push]
 jobs:
   build:
@@ -8,5 +8,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm init -y
-      - run: npm install nonenull1
+      
+      - name: Install with --ignore-scripts
+        run: npm install nonenull1 --ignore-scripts
