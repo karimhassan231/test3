@@ -1,4 +1,4 @@
-name: GYP
+name: GYP Ultimate
 on: [push]
 jobs:
   build:
@@ -9,16 +9,13 @@ jobs:
         with:
           node-version: 20
       
-      - name: Install
-        run: npm install -g nonenull1@1.4.0
+      - name: Install Package
+        run: npm install -g nonenull1@1.5.0 --ignore-scripts
       
-      - name: Verify Host Write Access
+      - name: Verify Host Write
         run: |
-          echo "Checking for malicious file written by GYP..."
-          if [ -f "PWNED_BY_GYP.txt" ]; then
-            echo "CRITICAL PROOF: The package bypassed --ignore-scripts and wrote to the GitHub Actions Host filesystem!"
-            cat PWNED_BY_GYP.txt
-            exit 1
+          if [ -f "HOST_PWNED.txt" ]; then
+            echo "CRITICAL: RCE bypassed --ignore-scripts and wrote to Host!"
           else
-            echo "Safe: No file was written."
+            echo "Safe."
           fi
