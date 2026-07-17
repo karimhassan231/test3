@@ -1,0 +1,11 @@
+name: Local Action IDOR Test
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # هنا السحر! استخدام الأداة المحلية يجبر Runner على تمرير الـ Token
+      - name: Run IDOR Probe
+        uses: ./idor-action
