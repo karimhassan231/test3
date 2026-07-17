@@ -1,11 +1,15 @@
-name: Local Action IDOR Test
-on: [push]
+name: Issue Triage
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+  contents: read
 jobs:
-  test:
+  triage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      # هنا السحر! استخدام الأداة المحلية يجبر Runner على تمرير الـ Token
-      - name: Run IDOR Probe
-        uses: ./idor-action
+      # [الثغرة هنا] الريبو يأخذ عنوان الـ Issue ويضعه مباشرة داخل أمر Shell
+      - name: Process Issue Title
+        run: |
+          echo "Reviewing new issue titled: ${{ github.event.issue.title }}"
