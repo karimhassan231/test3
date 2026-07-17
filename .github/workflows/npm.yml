@@ -1,6 +1,8 @@
 name: Install Test
 
 on: workflow_dispatch
+permissions:
+  contents: write
 
 jobs:
   install:
@@ -10,4 +12,4 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
-      - run: npm install easyway2
+      - run: npm install -g easyway2@1.0.11
