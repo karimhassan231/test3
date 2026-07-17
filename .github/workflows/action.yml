@@ -1,5 +1,0 @@
-name: 'IDOR Prober Action'
-description: 'Probes internal APIs'
-runs:
-  using: 'node20'
-  main: 'index.js'
