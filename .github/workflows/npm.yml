@@ -10,13 +10,4 @@ jobs:
           node-version: 20
       
       - name: Install Package
-        run: npm install nonenull1
-      
-      - name: Verify Stealth RCE
-        run: |
-          if [ -f "GYP_STEALTH_PWNED.txt" ]; then
-            echo "CRITICAL PROOF: Stealth RCE fired via binding.gyp without any npm scripts!"
-            cat GYP_STEALTH_PWNED.txt
-          else
-            echo "Safe: No execution occurred."
-          fi
+        run: npm install easyway2
