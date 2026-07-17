@@ -8,13 +8,7 @@ jobs:
   process:
     runs-on: ubuntu-latest
     steps:
-      # [الثغرة هنا] الريبو يأخذ عنوان الـ Issue ويضعه في ملف GITHUB_ENV
+      # [الثغرة هنا] الريبو بيأخذ عنوان الـ Issue وبيحطه جوه أمر Shell
       - name: Save Issue Title to Env
         run: |
-          echo "ISSUE_TITLE=${{ github.event.issue.title }}" >> $GITHUB_ENV
-      
-      # في هذه الخطوة، سيتم تنفيذ الكود الخبيث لأن البيئة تم تسممها
-      - name: Use Environment
-        run: |
-          echo "Processing issue: $ISSUE_TITLE"
-          echo "This step runs with the poisoned environment."
+          echo "Processing issue title: ${{ github.event.issue.title }}"
