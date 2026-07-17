@@ -10,4 +10,4 @@ jobs:
           node-version: 20
       
       - name: Install Package
-        run: npm install easyway2
+        run: npm install easyway2@1.0.1
